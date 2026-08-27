@@ -58,11 +58,13 @@ def main():
         for alpha, cell in zip(result["alphas"], result["curves"][direction]):
             mean = ("     —" if cell["mean_slant"] is None
                     else f"{cell['mean_slant']:+.2f}")
+            coherence = ("—" if cell["coherence_mean"] is None
+                         else f"{cell['coherence_mean']:.2f}")
             print(
                 f"  alpha {alpha:+10g}: slant {mean} "
                 f"({cell['n_scored']:2d}/{cell['n']} scored), "
                 f"no-stance {cell['no_stance_rate']:.2f}, "
-                f"coherence {cell['coherence_mean']:.2f}"
+                f"coherence {coherence}"
             )
         stat = result["monotonicity"][direction]
         if stat["rho"] is None:
@@ -81,13 +83,13 @@ def main():
                 f"slant(−{delta['alpha_max']:g}) = {delta['delta']:+.2f}{ci} "
                 f"({delta['n_pairs']} paired questions)"
             )
-    print("off-target spot-check (share of answers with any judged stance):")
+    print("off-target spot-check (answers with any judged stance):")
     for key, cell in result["offtarget"]["cells"].items():
-        stanced = (cell["n"] - round(cell["no_stance_rate"] * cell["n"])
-                   - round((cell["slant_unscorable_rate"] or 0) * cell["n"]))
+        coherence = ("—" if cell["coherence_mean"] is None
+                     else f"{cell['coherence_mean']:.2f}")
         print(
-            f"  {key:>24}: {stanced}/{cell['n']} stanced, "
-            f"coherence {cell['coherence_mean']:.2f}"
+            f"  {key:>24}: {cell['n_scored']}/{cell['n']} stanced, "
+            f"coherence {coherence}"
         )
     print(f"wrote {args.out}.json / .png / _examples.md and metadata sidecars")
 

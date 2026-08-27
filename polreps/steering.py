@@ -454,6 +454,7 @@ def _cell_summary(rows):
             float(1.96 * np.std(slants, ddof=1) / math.sqrt(len(slants)))
             if len(slants) >= 2 else None
         ),
+        "n_no_stance": categories.count(NO_STANCE),
         "no_stance_rate": categories.count(NO_STANCE) / n,
         "slant_unscorable_rate": (
             categories.count(UNSCORABLE) / n
