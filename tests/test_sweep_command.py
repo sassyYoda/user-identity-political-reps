@@ -9,9 +9,9 @@ from polreps import sweep
 from polreps.config import REPO
 
 
-def write_prompt_table(path, planted, drop=()):
+def write_prompt_table(path, planted, drop=(), group_column="base_q_template_hash"):
     rows = [
-        {"prompt_id": pid, "condition": cond, "base_q_template_hash": group}
+        {"prompt_id": pid, "condition": cond, group_column: group}
         for pid, cond, group in zip(
             planted["prompt_ids"], planted["labels"], planted["groups"]
         )
@@ -19,7 +19,7 @@ def write_prompt_table(path, planted, drop=()):
     ]
     rows.reverse()  # cache order and table order differ; the join must be by id
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["prompt_id", "condition", "base_q_template_hash"])
+        writer = csv.DictWriter(f, fieldnames=["prompt_id", "condition", group_column])
         writer.writeheader()
         writer.writerows(rows)
 

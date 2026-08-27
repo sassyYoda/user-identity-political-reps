@@ -58,8 +58,13 @@ def shuffle_labels(labels, seed):
     return np.random.default_rng(seed).permutation(labels)
 
 
-def join_prompt_table(labels_csv, cache_prompt_ids):
-    """Labels and groups from the prompt table, joined by id into cache row order."""
+def join_prompt_table(labels_csv, cache_prompt_ids,
+                      columns=("condition", "base_q_template_hash")):
+    """Prompt-table columns joined by id into cache row order, one array each.
+
+    The default columns are the sweep's labels and CV groups; the displacement
+    stage joins ("condition", "pre_prompt_q_hash") through the same guards.
+    """
     with open(labels_csv, newline="") as f:
         table_rows = list(csv.DictReader(f))
     by_id = {row["prompt_id"]: row for row in table_rows}
@@ -76,9 +81,9 @@ def join_prompt_table(labels_csv, cache_prompt_ids):
             f"prompts missing from the table, {len(extra)} table rows not in "
             "the cache — refusing to guess an alignment"
         )
-    labels = np.array([by_id[pid]["condition"] for pid in cache_prompt_ids])
-    groups = np.array([by_id[pid]["base_q_template_hash"] for pid in cache_prompt_ids])
-    return labels, groups
+    return tuple(
+        np.array([by_id[pid][col] for pid in cache_prompt_ids]) for col in columns
+    )
 
 
 def sweep_variant(acts, labels, groups, n_splits, seed, conditions=None):
