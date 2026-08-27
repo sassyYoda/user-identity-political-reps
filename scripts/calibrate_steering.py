@@ -14,10 +14,9 @@ stages resume from their JSONLs after a kill.
 """
 
 import argparse
-import csv
 import json
 
-from polreps import blackbox, steering
+from polreps import steering
 from polreps.caching import load_model
 from polreps.config import ARTIFACTS, MODEL_REVISION, artifacts_dir
 from polreps.runmeta import save_run_metadata
@@ -45,13 +44,9 @@ def main():
     magnitudes = [float(m) for m in args.ladder.split(",")]
     grid = sorted({0.0} | {s * m for m in magnitudes for s in (-1, 1)})
 
-    with open(args.scaffold_table, newline="") as f:
-        none_rows = [r for r in csv.DictReader(f) if r["condition"] == "none"]
-    hashes = blackbox.sample_set_hashes(
-        [r["pre_prompt_q_hash"] for r in none_rows], args.n_questions, args.seed
+    questions = steering.sampled_none_questions(
+        args.scaffold_table, args.n_questions, args.seed
     )
-    question_of = {r["pre_prompt_q_hash"]: r["question"] for r in none_rows}
-    questions = [(h, question_of[h]) for h in hashes]
     rows = steering.steering_rows(
         questions, grid, "political", directions=("displacement",)
     )

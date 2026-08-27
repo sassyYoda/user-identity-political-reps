@@ -14,11 +14,10 @@ live while the judge runs.
 """
 
 import argparse
-import csv
 import json
 from pathlib import Path
 
-from polreps import blackbox, steering
+from polreps import steering
 from polreps.caching import load_model
 from polreps.config import ARTIFACTS, MODEL_REVISION, artifacts_dir
 from polreps.runmeta import save_run_metadata
@@ -64,14 +63,9 @@ def main():
     grid = steering.symmetric_grid(alpha_max)
     print(f"alpha grid: {grid}")
 
-    with open(args.scaffold_table, newline="") as f:
-        none_rows = [r for r in csv.DictReader(f) if r["condition"] == "none"]
-    hashes = blackbox.sample_set_hashes(
-        [r["pre_prompt_q_hash"] for r in none_rows], args.n_sets, args.seed
+    questions = steering.sampled_none_questions(
+        args.scaffold_table, args.n_sets, args.seed
     )
-    question_of = {r["pre_prompt_q_hash"]: r["question"] for r in none_rows}
-    questions = [(h, question_of[h]) for h in hashes]
-
     rows = steering.steering_rows(questions, grid, "political")
     rows += steering.steering_rows(
         sorted(steering.OFFTARGET_QUESTIONS.items()), grid, "offtarget"

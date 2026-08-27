@@ -199,7 +199,9 @@ The judge is the subject model itself, unsteered and blind to the
 steering condition (no second model or API judge is configured; the LLM
 slant-judge precedent is Kim et al. 2025 — GPT-4o judge, ICC 0.91
 against human raters — and self-judging is the documented residual
-caveat). Scoring reuses ticket 04's dumb rule with an explicit
+caveat: that validation covers a different judge, so this instrument is
+unvalidated until the owner reads the 36-example dump against its
+ratings, the first ticket-07 task). Scoring reuses ticket 04's dumb rule with an explicit
 "no discernible stance" option and a separate coherence probe; every one
 of the 1,170 judge answers was scorable. The alpha grid was calibrated
 before the dose-response run under a rule fixed in code (both signs
@@ -227,7 +229,7 @@ survivor-biased (reported with their thinned n).
 |---|---|---|---|---|---|---|
 | 2026-08-27 | calibrate | coherence cliff on the displacement direction (ladder 2.5k-160k, both signs, 6 questions, 120 new tokens): first magnitude failing the fixed rule; resulting grid | \|80,000\|; ±40k, ±20k, 0 | 1 | `artifacts/gemma-3-12b-it/steering_calibration.json` | pre |
 | 2026-08-27 | generate | steered generations (60 political questions, ticket 04's seeded subsample, x 9 direction-alpha conditions + 5 off-target prompts x 9; greedy, 200 new tokens) | 585 | 0 | `artifacts/gemma-3-12b-it/steering_generations.jsonl` | pre |
-| 2026-08-27 | judge | slant + coherence probes answered by the unsteered subject model; unscorable answers | 1,170; 0 | — | `artifacts/gemma-3-12b-it/steering_judgments.jsonl` | pre |
+| 2026-08-27 | judge | slant + coherence probes answered by the unsteered subject model (greedy, so no seed applies); unscorable answers | 1,170; 0 | — | `artifacts/gemma-3-12b-it/steering_judgments.jsonl` | pre |
 | 2026-08-27 | dose-response | primary statistic, displacement direction: pooled Spearman alpha-vs-slant over scored political generations, within-question permutation p (10,000 draws) | rho +0.082 (p 0.0031, n=295, 60 questions) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
 | 2026-08-27 | dose-response | matched-norm random control, same statistic (its \|40k\| cells thinned to 12 and 37 scored by the coherence collapse below) | rho +0.043 (p 0.20, n=229) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
 | 2026-08-27 | dose-response | extremes contrast, paired within question: slant(+40k) − slant(−40k), displacement; random (survivor-biased n) | +0.16 ± 0.10 (57 pairs); +0.25 ± 0.32 (8 pairs) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |

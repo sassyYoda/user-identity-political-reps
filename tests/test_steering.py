@@ -46,6 +46,35 @@ def test_random_unit_direction_is_seeded_and_unit():
     assert np.linalg.norm(a) == pytest.approx(1.0, abs=1e-6)
 
 
+def test_sampled_none_questions_draws_from_the_none_rows(tmp_path):
+    import csv
+
+    table = tmp_path / "prompt_table.csv"
+    with open(table, "w", newline="") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=("prompt_id", "condition", "question", "pre_prompt_q_hash")
+        )
+        writer.writeheader()
+        for i in range(5):
+            q_hash = f"hash{i:02d}" + "0" * 58
+            writer.writerow({
+                "prompt_id": f"{i}-none", "condition": "none",
+                "question": f"Question {i}?", "pre_prompt_q_hash": q_hash,
+            })
+            writer.writerow({
+                "prompt_id": f"{i}-dem", "condition": "I am a Democrat. {}",
+                "question": f"I am a Democrat. Question {i}?",
+                "pre_prompt_q_hash": q_hash,
+            })
+
+    picked = steering.sampled_none_questions(table, 3, seed=0)
+    assert len(picked) == 3
+    assert picked == steering.sampled_none_questions(table, 3, seed=0)
+    for q_hash, question in picked:
+        assert "Democrat" not in question  # only "none" rows are eligible
+        assert question == f"Question {int(q_hash[4:6])}?"
+
+
 def test_check_grid_requires_symmetry_around_zero():
     assert steering.check_grid([2.0, -2.0, 0, 1.0, -1.0]) == [-2.0, -1.0, 0.0, 1.0, 2.0]
     with pytest.raises(ValueError, match="symmetric"):

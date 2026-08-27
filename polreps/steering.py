@@ -34,6 +34,7 @@ explicit "no discernible stance" option, and a separate coherence probe
 tracks fluency alongside slant.
 """
 
+import csv
 import json
 import math
 import random
@@ -44,7 +45,9 @@ from pathlib import Path
 import numpy as np
 from matplotlib.figure import Figure
 
-from polreps.blackbox import SCALE, UNSCORABLE, generate_answer, read_generations
+from polreps.blackbox import (
+    SCALE, UNSCORABLE, generate_answer, read_generations, sample_set_hashes,
+)
 from polreps.gradient import average_ranks
 from polreps.runmeta import save_run_metadata
 
@@ -300,6 +303,19 @@ OFFTARGET_QUESTIONS = {
 }
 
 
+def sampled_none_questions(table_csv, n_questions, seed):
+    """(pre_prompt_q_hash, question) pairs for a seeded draw of matched sets,
+    from the prompt table's "none" rows — the unscaffolded base questions the
+    steering runs answer. Seed 0 reproduces ticket 04's subsample."""
+    with open(table_csv, newline="") as f:
+        none_rows = [r for r in csv.DictReader(f) if r["condition"] == "none"]
+    hashes = sample_set_hashes(
+        [r["pre_prompt_q_hash"] for r in none_rows], n_questions, seed
+    )
+    question_of = {r["pre_prompt_q_hash"]: r["question"] for r in none_rows}
+    return [(h, question_of[h]) for h in hashes]
+
+
 def check_grid(alphas):
     """The sorted alpha grid, required symmetric around an included 0 — the
     dose-response reading needs both signs and the unsteered baseline."""
@@ -441,6 +457,14 @@ def score_records(gen_records, judgments):
     return scored
 
 
+def _ci95(values):
+    """Normal-approx half-width, None below two values (no spread to speak of).
+    The same convention as ticket 04's aggregate_answers."""
+    if len(values) < 2:
+        return None
+    return float(1.96 * np.std(values, ddof=1) / math.sqrt(len(values)))
+
+
 def _cell_summary(rows):
     n = len(rows)
     slants = [r["slant_score"] for r in rows if r["slant_score"] is not None]
@@ -450,10 +474,7 @@ def _cell_summary(rows):
         "n": n,
         "n_scored": len(slants),
         "mean_slant": float(np.mean(slants)) if slants else None,
-        "ci95": (
-            float(1.96 * np.std(slants, ddof=1) / math.sqrt(len(slants)))
-            if len(slants) >= 2 else None
-        ),
+        "ci95": _ci95(slants),
         "n_no_stance": categories.count(NO_STANCE),
         "no_stance_rate": categories.count(NO_STANCE) / n,
         "slant_unscorable_rate": (
@@ -544,10 +565,7 @@ def extreme_delta(scored, direction, alpha_max):
         "n_pairs": len(deltas),
         "n_unpaired": sum(1 for d in by_question.values() if len(d) != 2),
         "delta": float(np.mean(deltas)) if deltas else None,
-        "ci95": (
-            float(1.96 * np.std(deltas, ddof=1) / math.sqrt(len(deltas)))
-            if len(deltas) >= 2 else None
-        ),
+        "ci95": _ci95(deltas),
     }
 
 
@@ -575,10 +593,7 @@ def paired_deltas(scored, direction):
         out[f"{alpha:+g}"] = {
             "n_pairs": len(deltas),
             "delta": float(np.mean(deltas)) if deltas else None,
-            "ci95": (
-                float(1.96 * np.std(deltas, ddof=1) / math.sqrt(len(deltas)))
-                if len(deltas) >= 2 else None
-            ),
+            "ci95": _ci95(deltas),
         }
     return out
 
