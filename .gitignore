@@ -6,8 +6,13 @@ venv/
 .ipynb_checkpoints/
 
 # Data and cached artifacts (activations are hundreds of MB; re-derive, don't commit)
-activations/
-data/raw/
+# .gitkeep survives so the layout exists on a fresh clone
+activations/*
+data/raw/*
+artifacts/*
+!activations/.gitkeep
+!data/raw/.gitkeep
+!artifacts/.gitkeep
 *.pt
 *.npz
 *.safetensors
