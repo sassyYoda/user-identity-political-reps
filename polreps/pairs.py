@@ -144,6 +144,12 @@ def condition_order(condition):
     return (condition != "none", condition)
 
 
+def prompt_id(pre_prompt_q_hash, condition):
+    """The release-derived row id. One definition: the activation caches are
+    keyed by these, so any drift between table builders corrupts every join."""
+    return f"{pre_prompt_q_hash[:16]}-{hash_string(condition)[:16]}"
+
+
 def prompt_table_rows(matched_sets):
     """Flatten sets to prompt-table rows, "none" first within each set. Row
     order and prompt_id must be reproducible across rebuilds: the activation
@@ -153,7 +159,7 @@ def prompt_table_rows(matched_sets):
         for condition in sorted(s["questions"], key=condition_order):
             rows.append(
                 {
-                    "prompt_id": f"{s['pre_prompt_q_hash'][:16]}-{hash_string(condition)[:16]}",
+                    "prompt_id": prompt_id(s["pre_prompt_q_hash"], condition),
                     "condition": condition,
                     "question": s["questions"][condition],
                     "pre_prompt_q_hash": s["pre_prompt_q_hash"],

@@ -110,3 +110,40 @@ its shuffled reference at any layer.
 | 2026-08-27 | alignment | per-layer cosine extremes: the sign is unstable mid-stack, stable positive from layer 38 on (+0.13..+0.30) | +0.844 (layer 23), -0.827 (layer 11) | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
 | 2026-08-27 | working layer | chosen for downstream analyses: argmax of min accuracy over the informative transfer variants (those clearing shuffled max + 0.05; the three content->scaffold curves) among layers with positive diff and ridge alignment | 46 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | post |
 
+## Projection gradient (Gemma-3-12B-IT, MATS arc ticket 03)
+
+Every condition's displacement, meaning the 21 Cen variations plus five
+generated controls (two inert, one syntactic, two partisan paraphrases;
+`artifacts/control_table.csv`, cached at the same seam over the same 573 base
+questions), projected per matched set onto the unit ideology direction at
+working layer 46 (the post-hoc-chosen layer of ticket 02), then averaged over
+sets. Nulls per ADR-0003: within-set label permutations (10,000 draws, pooled
+across the 26 conditions) and matched-norm random directions (100,000 draws).
+The anchor leans were pinned before any projection was computed, from Pew's
+validated-voter study of the 2024 election, published June 2025
+(`scripts/fetch_partisan_lean.py`; PDF sha256-pinned; margins
+hand-transcribed, owner re-check is a ticket-07 task). Per ADR-0003 the
+anchor correlation is a consistency check, never a headline statistic: only
+six scaffolds have anchors, so its rows carry the n. One correction between
+the first and final run: the first look showed the permutation null is not
+centered at zero (every condition shares a large positive projection), so the
+per-condition permutation p was changed from a zero-centered magnitude test
+to a two-sided test against the null distribution itself; the
+planted-gradient unit test now plants a common offset to cover this. No other
+difference between the runs, and the ranking and both null distributions were
+unaffected.
+
+| date | stage | metric | value | seed | provenance | registered |
+|---|---|---|---|---|---|---|
+| 2026-08-27 | controls | control prompts cached, one forward pass each (573 sets x 5 conditions, 48 layers x d_model 3840, last-token resid_post, fp32) | 2,865 | — | `activations/gemma-3-12b-it/controls` | pre |
+| 2026-08-27 | gradient | common projection component shared by all 26 conditions at layer 46: permutation-null mean; 99% band | +331.6; [+246.8, +416.3] | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
+| 2026-08-27 | gradient | spectrum top at layer 46 (perm-p and rand-p all at their 7.7e-6 / 1e-5 floors): Republican scaffold / its paraphrase / man scaffold | +1763.3 / +1604.9 / +1211.8 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | spectrum bottom at layer 46: "diversity of opinions" suffix / Black scaffold | -918.7 / -461.6 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | Democrat scaffold at layer 46: statistically indistinguishable from the common component (perm-p 0.82, rand-p 0.23); the partisan separation is carried by the Republican side | +339.2 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | controls at layer 46: syntactic "I am a person" / inert left-handed / inert born-in-June. All three deviate from the common component (perm-p at the 7.7e-6 floor; person and its near-zero absolute projection sit below the band). On the random-direction null person is clean (0.78), left-handed borderline (0.050), June clearly loaded (4.2e-4) | +53.8 / +534.1 / +870.4 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | non-identity variations vs the random-direction null: indistinguishable from a random axis (rand-p > 0.05) for 9 of 10; the exception is the "diversity of opinions" suffix (rand-p 2.0e-5) | 9/10 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | partisan-lean anchor (consistency check, small n): Spearman between demographic projections at layer 46 and the net Republican margin in the 2024 vote from Pew's validated-voter study (6 anchored scaffolds; American Indian, Pacific Islander, non-binary unreported by Pew) | +0.928 (exact p 0.0222, n=6) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | paraphrase check, layer 46: displacement cosine vs the original scaffold ("I'm a member of the Democratic/Republican party" vs "I am a Democrat/Republican"); spectrum ranks adjacent (13 vs 14, 2 vs 1) | +0.979 / +0.991 | 0 | `artifacts/gemma-3-12b-it/gradient.json` | pre |
+| 2026-08-27 | gradient | rank stability of the spectrum, layer 46 vs 39: all 26 conditions (layer 39 is ticket 02's recorded alternative; no written plan pre-registered this comparison) | +0.605 (p 0.0011) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
+| 2026-08-27 | gradient | rank stability restricted to identity scaffolds and controls (n=16; the suffix variations swing hard at 39, up to +5664) | +0.721 (p 0.0023) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
+| 2026-08-27 | gradient | partisan-lean anchor at layer 39 | +0.812 (exact p 0.072, n=6) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
