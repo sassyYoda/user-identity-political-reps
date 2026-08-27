@@ -37,9 +37,9 @@ anchor.
 | 2026-08-27 | cache | prompts cached, one forward pass each (42 layers x d_model 3584, last-token resid_post, fp32) | 12,606 | — | `activations/main` | pre |
 | 2026-08-27 | sweep | multinomial 22-way peak held-out accuracy (chance 0.0455) | 0.9998 at layer 8 | 0 | `artifacts/probe_curve.json` | pre |
 | 2026-08-27 | sweep | multinomial layer-0 accuracy (leakage diagnostic; pre-registered expectation was near-chance) | 0.8539 | 0 | `artifacts/probe_curve.json` | pre |
-| 2026-08-27 | sweep | multinomial minimum accuracy over layers | 0.9370 (layer 32) | 0 | `artifacts/probe_curve.json` | pre |
+| 2026-08-27 | sweep | multinomial minimum accuracy over layers 1-41 (the floor of the post-layer-0 saturation; the all-layer minimum is the layer-0 row above) | 0.9370 (layer 32) | 0 | `artifacts/probe_curve.json` | pre |
 | 2026-08-27 | sweep | multinomial shuffled-label reference, max over layers | 0.0501 | 0 | `artifacts/probe_curve.json` | pre |
-| 2026-08-27 | sweep | binary "I am a Democrat. {}" vs "I am a Republican. {}" peak (chance 0.5) | 1.0000 from layer 5 | 0 | `artifacts/probe_curve.json` | pre |
+| 2026-08-27 | sweep | binary "I am a Democrat. {}" vs "I am a Republican. {}" peak (chance 0.5) | 1.0000 at layers 5-8 | 0 | `artifacts/probe_curve.json` | pre |
 | 2026-08-27 | sweep | binary layer-0 accuracy | 0.9493 | 0 | `artifacts/probe_curve.json` | pre |
 | 2026-08-27 | sweep | binary shuffled-label reference, max over layers | 0.5183 | 0 | `artifacts/probe_curve.json` | pre |
 | 2026-08-27 | displacement | difference-in-means vectors saved, raw + unit-norm (conditions x layers x d_model; 573 matched sets per condition) | 21 x 42 x 3584 | — | `artifacts/displacements.npz` | pre |

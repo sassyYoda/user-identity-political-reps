@@ -6,6 +6,8 @@ caching stage: a real cache must load through the same actcache.load_cache call
 these tests exercise.
 """
 
+import csv
+
 import numpy as np
 import pytest
 
@@ -13,6 +15,21 @@ from polreps import actcache
 
 CONDITIONS = ("none", "democrat", "republican", "woman")
 SIGNAL_LAYER = 3
+
+
+def write_prompt_table(path, planted, drop=(), group_column="base_q_template_hash"):
+    rows = [
+        {"prompt_id": pid, "condition": cond, group_column: group}
+        for pid, cond, group in zip(
+            planted["prompt_ids"], planted["labels"], planted["groups"]
+        )
+        if pid not in drop
+    ]
+    rows.reverse()  # cache order and table order differ; the join must be by id
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["prompt_id", "condition", group_column])
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def make_planted_data(

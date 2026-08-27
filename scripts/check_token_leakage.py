@@ -27,6 +27,9 @@ from polreps.sweep import join_prompt_table, sweep_variant
 def split_by_form(conditions):
     prefix = sorted(c for c in conditions if c.endswith("{}"))
     suffix = sorted(c for c in conditions if c.startswith("{}"))
+    both = set(prefix) & set(suffix)
+    if both:
+        raise ValueError(f"conditions matching both forms: {sorted(both)}")
     leftover = set(conditions) - set(prefix) - set(suffix) - {"none"}
     if leftover:
         raise ValueError(f"conditions with neither form: {sorted(leftover)}")

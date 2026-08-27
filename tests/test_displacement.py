@@ -7,7 +7,7 @@ import pytest
 
 from polreps import displacement
 from polreps.config import REPO
-from tests.test_sweep_command import write_prompt_table
+from tests.conftest import write_prompt_table
 
 N_LAYERS, D_MODEL = 4, 12
 
