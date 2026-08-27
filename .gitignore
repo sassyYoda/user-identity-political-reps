@@ -12,6 +12,10 @@ data/raw/
 *.npz
 *.safetensors
 
+# Secrets
+.env
+.env.*
+
 # OS
 .DS_Store
 
