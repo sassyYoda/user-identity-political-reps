@@ -307,6 +307,11 @@ def test_extreme_delta_pairs_within_question(tmp_path):
     assert delta["delta"] == pytest.approx(4.0)
     flat = steering.extreme_delta(scored, "random", 800.0)
     assert flat["delta"] == pytest.approx(0.0)
+    per_alpha = steering.paired_deltas(scored, "displacement")
+    assert per_alpha["+800"]["delta"] == pytest.approx(2.0)
+    assert per_alpha["-400"]["delta"] == pytest.approx(-1.0)
+    assert per_alpha["+800"]["n_pairs"] == len(QUESTIONS) - 1
+    assert "+0" not in per_alpha
 
 
 def coherence_records(spec):

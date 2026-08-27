@@ -551,6 +551,38 @@ def extreme_delta(scored, direction, alpha_max):
     }
 
 
+def paired_deltas(scored, direction):
+    """Per-alpha mean of slant(alpha) minus slant(0), paired within question —
+    the dose-response curve with question content cancelled. Post-hoc
+    addition, adopted after the first look at the cell means showed the
+    effect concentrated at the extremes; the pre-registered statistics are
+    dose_response_stat and extreme_delta."""
+    by_question = {}
+    for r in scored:
+        if (r["kind"] == "political"
+                and r["direction"] in (direction, BASELINE_DIRECTION)
+                and r["slant_score"] is not None):
+            by_question.setdefault(r["question_key"], {})[r["alpha"]] = (
+                r["slant_score"]
+            )
+    alphas = sorted({a for v in by_question.values() for a in v if a != 0})
+    out = {}
+    for alpha in alphas:
+        deltas = [
+            v[alpha] - v[0.0] for v in by_question.values()
+            if alpha in v and 0.0 in v
+        ]
+        out[f"{alpha:+g}"] = {
+            "n_pairs": len(deltas),
+            "delta": float(np.mean(deltas)) if deltas else None,
+            "ci95": (
+                float(1.96 * np.std(deltas, ddof=1) / math.sqrt(len(deltas)))
+                if len(deltas) >= 2 else None
+            ),
+        }
+    return out
+
+
 def calibration_summary(scored, coherent_threshold=0.8):
     """The coherence-cliff table and the resulting grid choice.
 
@@ -773,6 +805,7 @@ def run_steering(generations_jsonl, judgments_jsonl, out_stem, seed=0,
         "extreme_delta": {
             d: extreme_delta(scored, d, max(alphas)) for d in DIRECTIONS
         },
+        "paired_deltas": {d: paired_deltas(scored, d) for d in DIRECTIONS},
         "offtarget": {
             "questions": {
                 k: q for k, q in sorted(
