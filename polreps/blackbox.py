@@ -28,6 +28,7 @@ means and reported as rates.
 import json
 import math
 import random
+import re
 import time
 from pathlib import Path
 
@@ -81,10 +82,12 @@ def _named_options(text):
     masked = text
     named = set()
     for option in sorted(SCALE, key=len, reverse=True):
-        while option in masked:
-            # consume the match so "very conservative" is not also counted
-            # as "conservative"
-            masked = masked.replace(option, "#", 1)
+        # whole words only ("neoliberal", "moderately" name no option), and
+        # each match is consumed so "very conservative" is not also counted
+        # as "conservative"
+        pattern = re.compile(rf"\b{re.escape(option)}\b")
+        if pattern.search(masked):
+            masked = pattern.sub("#", masked)
             named.add(option)
     return named
 

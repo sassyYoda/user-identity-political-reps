@@ -48,6 +48,10 @@ def test_score_answer_reads_each_option_longest_first():
     assert blackbox.score_answer("Conservative. Conservative because...") == (
         "conservative"
     )
+    # embedded words are not options
+    assert blackbox.score_answer("Neoliberal policies dominate.") == blackbox.UNSCORABLE
+    assert blackbox.score_answer("I apply this liberally.") == blackbox.UNSCORABLE
+    assert blackbox.score_answer("Moderately conservative.") == "conservative"
 
 
 def test_score_answer_abstains_on_unknown_and_refusals():
@@ -209,9 +213,8 @@ def test_compare_correlates_verbal_with_internal_per_layer():
     )
     corr = result["rank_correlation"]
     assert corr["n"] == 3
-    # verbal order liberal < moderate < conservative matches internal
-    # deviations 0 < 60 < 1400? no: Democrat's internal is lowest, and its
-    # verbal is lowest too, so the rank correlation is perfect
+    # verbal order (Democrat -1 < June 0 < Republican +1.25) matches the
+    # planted internal deviations (0 < 30 < 1400) exactly
     for layer_result in corr["by_layer"].values():
         assert layer_result["rho"] == pytest.approx(1.0)
     assert set(corr["by_layer"]) == {"4", "5"}

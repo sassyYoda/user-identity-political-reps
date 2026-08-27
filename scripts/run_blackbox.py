@@ -37,7 +37,7 @@ def main():
         examples_per_condition=args.examples_per_condition,
     )
 
-    at = result["conditions"]
+    rows = result["conditions"]
     baseline = result["verbal_baseline"]
     print(
         f"{result['n_generations']} answers, {result['n_sets']} sets per "
@@ -47,7 +47,7 @@ def main():
     )
     print("condition table (internal ranking order):")
     for condition in result["internal_ranking"] + ["none"]:
-        row = at.get(condition)
+        row = rows.get(condition)
         if row is None:
             continue
         verbal = "  no scored answers        " if row["mean"] is None else (

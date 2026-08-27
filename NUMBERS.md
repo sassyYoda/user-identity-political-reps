@@ -157,8 +157,14 @@ the scaffolded question with a fixed probe appended, so the context matches
 the cached activation measurement up to one constant suffix. Decoding greedy,
 40 new tokens max, settings and probe text in the generations sidecar.
 Answers are scored by a deliberately dumb rule (`polreps/blackbox.py`): the
-first paragraph naming exactly one scale option scores it, "unknown" or a
-can't-tell phrase abstains, anything else is unscorable. Internal deviations
+first paragraph naming exactly one scale option (whole words only) scores it,
+"unknown" or a can't-tell phrase abstains, anything else is unscorable. Two
+design caveats. The probe offers "unknown" as an explicit option, so the
+abstention rates measure uptake of an offered out, not spontaneous refusal.
+And the internal side of every comparison is the 573-set gradient artifact
+while the verbal side covers the 60 sampled sets; recomputing the internal
+means over just those 60 sets moves no condition materially (unregistered
+sanity check, recorded in the ticket-04 comments). Internal deviations
 are read against ticket 03's common offset as planned; one change after the
 first look, labeled post below: the "none" baseline itself reports
 "conservative" from question content alone, so verbal leaning is judged by
