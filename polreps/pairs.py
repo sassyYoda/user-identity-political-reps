@@ -53,38 +53,41 @@ def recover_pre_prompt_q(question, prompt_type):
     return question[len(prefix) : len(question) - len(suffix)]
 
 
-def build_matched_sets(bank_rows, conditions, drop_types=("baseline",)):
+def build_matched_sets(bank_rows, conditions):
     """Group bank rows into matched sets: one per pre-prompt question, holding
     the final question text under every condition, anchored on "none".
 
     Returns (sets, report). Sets are sorted by pre_prompt_q_hash so downstream
     order never depends on bank row order. Excluded material is counted in the
-    report; schema drift (missing fields, unknown conditions, uninvertible
-    questions, duplicate rows, no anchored sets at all) raises instead.
+    report; schema drift (missing fields, vocabulary mismatch in either
+    direction, uninvertible questions, duplicate rows, no anchored sets at
+    all) raises instead.
     """
     for row in bank_rows:
         missing = [f for f in REQUIRED_FIELDS if f not in row]
         if missing:
             raise ValueError(f"bank row missing field(s) {missing}: {row!r}")
 
-    kept = [r for r in bank_rows if r["type"] not in drop_types]
-    dropped = Counter((r["type"], r["category"]) for r in bank_rows if r["type"] in drop_types)
+    kept = [r for r in bank_rows if r["type"] != "baseline"]
+    dropped = Counter((r["type"], r["category"]) for r in bank_rows if r["type"] == "baseline")
 
     observed = {r["prompt_type"] for r in kept}
-    if not observed <= set(conditions):
+    if observed != set(conditions):
         raise ValueError(
-            f"prompt-type vocabulary drifted: unexpected {sorted(observed - set(conditions))}; "
+            f"prompt-type vocabulary drifted: unexpected {sorted(observed - set(conditions))}, "
+            f"absent {sorted(set(conditions) - observed)}; "
             f"observed vocabulary is {sorted(observed)}"
         )
 
     by_question = {}
     for row in kept:
         pre_prompt_q = recover_pre_prompt_q(row["question"], row["prompt_type"])
+        q_hash = hash_string(pre_prompt_q)
         s = by_question.setdefault(
-            hash_string(pre_prompt_q),
+            q_hash,
             {
                 "pre_prompt_q": pre_prompt_q,
-                "pre_prompt_q_hash": hash_string(pre_prompt_q),
+                "pre_prompt_q_hash": q_hash,
                 "base_q_template": row["base_q"],
                 "base_q_template_hash": hash_string(row["base_q"]),
                 "type": row["type"],
@@ -104,18 +107,20 @@ def build_matched_sets(bank_rows, conditions, drop_types=("baseline",)):
             )
         s["questions"][row["prompt_type"]] = row["question"]
 
-    anchored = [s for s in by_question.values() if "none" in s["questions"]]
-    if kept and not anchored:
-        raise ValueError(
-            'no matched set has a "none" baseline row; the bank\'s prompt_type '
-            "labeling has drifted"
-        )
-    anchored.sort(key=lambda s: s["pre_prompt_q_hash"])
+    # a bank with no "none" rows at all never reaches here: "none" is always
+    # among the expected conditions, so the vocabulary check above fires first
+    anchored = sorted(
+        (s for s in by_question.values() if "none" in s["questions"]),
+        key=lambda s: s["pre_prompt_q_hash"],
+    )
 
     report = {
         "rows_in": len(bank_rows),
         "rows_dropped": dict(dropped),
         "sets_missing_none": len(by_question) - len(anchored),
+        "incomplete_sets": sum(
+            1 for s in anchored if set(s["questions"]) != set(conditions)
+        ),
         "n_sets": len(anchored),
         "condition_counts": Counter(
             c for s in anchored for c in s["questions"]
@@ -134,13 +139,18 @@ def subsample_sets(matched_sets, max_sets, seed):
     return [ordered[i] for i in sorted(picked)]
 
 
+def condition_order(condition):
+    # "none" first, then alphabetical — the display and table order everywhere
+    return (condition != "none", condition)
+
+
 def prompt_table_rows(matched_sets):
     """Flatten sets to prompt-table rows, "none" first within each set. Row
     order and prompt_id must be reproducible across rebuilds: the activation
     cache (polreps.actcache) is keyed by prompt_id."""
     rows = []
     for s in matched_sets:
-        for condition in sorted(s["questions"], key=lambda c: (c != "none", c)):
+        for condition in sorted(s["questions"], key=condition_order):
             rows.append(
                 {
                     "prompt_id": f"{s['pre_prompt_q_hash'][:16]}-{hash_string(condition)[:16]}",

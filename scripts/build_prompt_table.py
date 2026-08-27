@@ -84,12 +84,13 @@ def main():
     for (qtype, category), n in sorted(report["rows_dropped"].items()):
         print(f"  {n:6d}  {qtype}/{category}")
     print(f"matched sets anchored on \"none\": {report['n_sets']}"
-          f" (excluded for missing baseline: {report['sets_missing_none']})")
+          f" (excluded for missing baseline: {report['sets_missing_none']};"
+          f" kept but missing some condition: {report['incomplete_sets']})")
     print(f"sets after subsample (seed {args.seed}): {len(sampled)}")
     print(f"conditions per set: {len(conditions)} (21 variations + none)")
     print("prompts per condition in the final table:")
     table_counts = Counter(r["condition"] for r in table)
-    for condition in sorted(table_counts, key=lambda c: (c != "none", c)):
+    for condition in sorted(table_counts, key=pairs.condition_order):
         print(f"  {table_counts[condition]:6d}  {condition}")
     print(f"\nwrote {len(table)} prompts to {table_path.relative_to(ARTIFACTS.parent)}"
           " (+ .meta.json)")

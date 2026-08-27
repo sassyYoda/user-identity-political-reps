@@ -64,7 +64,8 @@ def test_set_without_none_baseline_is_excluded_and_counted():
     assert report["sets_missing_none"] == 1
 
 
-def test_all_sets_missing_none_is_a_loud_failure():
+def test_bank_with_no_none_rows_at_all_is_a_loud_failure():
+    # caught by the vocabulary assertion: "none" is an expected condition
     rows = [bank_row("q?", "I am a Democrat. {}")]
     with pytest.raises(ValueError, match="none"):
         pairs.build_matched_sets(rows, CONDITIONS)
@@ -87,6 +88,28 @@ def test_unexpected_condition_fails_with_observed_vocabulary():
     with pytest.raises(ValueError) as err:
         pairs.build_matched_sets(rows, CONDITIONS)
     assert "I am a Whig. {}" in str(err.value)
+
+
+def test_expected_condition_absent_from_bank_fails_with_observed_vocabulary():
+    # upstream dropping a variation entirely is drift too, not just adding one
+    rows = template_rows("q?", ["q?"], conditions=CONDITIONS - {"I am a Democrat. {}"})
+    with pytest.raises(ValueError) as err:
+        pairs.build_matched_sets(rows, CONDITIONS)
+    assert "I am a Democrat. {}" in str(err.value)
+
+
+def test_incomplete_sets_are_counted():
+    # one set has every condition, the other is missing one row (but the
+    # vocabulary as a whole is intact, so this is not drift — just a gap)
+    rows = template_rows("full?", ["full?"])
+    rows += [
+        bank_row("partial?", cond)
+        for cond in CONDITIONS - {"{} Please cite your sources."}
+    ]
+    sets, report = pairs.build_matched_sets(rows, CONDITIONS)
+
+    assert len(sets) == 2
+    assert report["incomplete_sets"] == 1
 
 
 def test_missing_field_fails_loudly():
