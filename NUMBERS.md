@@ -76,3 +76,37 @@ ceiling, non-convergence can only understate accuracy.
 | 2026-08-27 | leakage | prefix-form conditions only, 13-way at layer 0 (chance 0.0769; distinctive tokens far from measured position) | 0.5263 | 0 | `artifacts/gemma-3-12b-it/leakage_check.json` | post |
 | 2026-08-27 | leakage | suffix-form conditions only, 8-way at layer 0 (chance 0.1250; distinctive tokens adjacent to measured position) | 0.9799 | 0 | `artifacts/gemma-3-12b-it/leakage_check.json` | post |
 | 2026-08-27 | leakage | prefix-form 13-way at layers 1 and 10 | 0.9116, 0.9976 | 0 | `artifacts/gemma-3-12b-it/leakage_check.json` | post |
+
+## Ideology direction and transfer test (Gemma-3-12B-IT, MATS arc ticket 02)
+
+Content corpus: 114th-Congress floor speeches (Gentzkow/Shapiro/Taddy
+hein-daily, ODC-BY 1.0) labeled with the speaker's DW-NOMINATE dim1 via a
+seat+lastname join to Voteview, filtered to 100-400 words and verified free of
+every scaffold phrase; provenance and sha256s in `data/raw/*/provenance.json`.
+Cached at the same seam as the scaffold prompts (one user turn, last
+pre-generation token). Transfer scorers fit almost nothing by construction:
+content statements are scored by a per-fold threshold on the projection
+(GroupKFold by speaker), scaffold rows by a zero-parameter paired comparison
+within matched sets under the fixed conservative-positive sign convention.
+Headline: transfer is asymmetric. The content-derived ideology direction reads
+the Democrat/Republican scaffold pairs near-perfectly in the late stack — and
+still does when re-derived from statements containing no party-family token —
+while the scaffold-derived axis does not separate content statements above
+its shuffled reference at any layer.
+
+| date | stage | metric | value | seed | provenance | registered |
+|---|---|---|---|---|---|---|
+| 2026-08-27 | corpus | statements sampled (1,000 per party, ≤10 per speaker, 470 speakers, congress 114) | 2,000 | 0 | `artifacts/content_corpus.csv` | pre |
+| 2026-08-27 | corpus | speech->speaker join: labeled speeches; hein-vs-Voteview party disagreements among them | 67,257; 0 | — | `artifacts/content_corpus.csv` | pre |
+| 2026-08-27 | corpus | eligible statements containing a scaffold phrase, removed before sampling | 5 of 18,746 | — | `artifacts/content_corpus.csv` | pre |
+| 2026-08-27 | cache | content statements cached, one forward pass each (48 layers x d_model 3840, last-token resid_post, fp32) | 2,000 | — | `activations/gemma-3-12b-it/content` | pre |
+| 2026-08-27 | direction | diff-in-means vs ridge-weights cosine, range over layers (0.271 at the working layer; both estimators share labels, so this is a consistency check, not independent confirmation) | +0.078..+0.420 | — | `artifacts/gemma-3-12b-it/ideology_direction.json` | pre |
+| 2026-08-27 | transfer | content->scaffold, paired accuracy over 573 matched sets (chance 0.5; swapped-pair reference max 0.555): peak / at layer 46 | 0.9983 (layer 46) / 0.9983 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | transfer | content->scaffold with the ridge direction (chance 0.5): peak / at layer 46 | 1.0000 (layer 11) / 0.9878 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | transfer | content->scaffold with the direction re-derived from the 1,688 statements with no party-family token (token-detector kill check) | 1.0000 (layer 31) / 0.9983 at layer 46 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | post |
+| 2026-08-27 | transfer | scaffold->content, threshold scorer, speaker-grouped CV (chance 0.5; shuffled reference max 0.5325): best layer | 0.5500 (layer 47); at chance | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | transfer | scaffold->content on no-party-token statements (chance 0.5450; shuffled max 0.5279): best layer | 0.5616 (layer 47); at chance | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | alignment | H2a cosine, (Republican minus Democrat) scaffold displacement vs ideology direction, layer 46; random-direction null sd; empirical p (100,000 draws) | +0.1349; 0.0162; <= 1e-5 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | alignment | per-layer cosine extremes: the sign is unstable mid-stack, stable positive from layer 38 on (+0.13..+0.30) | +0.844 (layer 23), -0.827 (layer 11) | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | pre |
+| 2026-08-27 | working layer | chosen for downstream analyses: argmax of min accuracy over the informative transfer variants (those clearing shuffled max + 0.05; the three content->scaffold curves) among layers with positive diff and ridge alignment | 46 | 0 | `artifacts/gemma-3-12b-it/transfer_test.json` | post |
+
