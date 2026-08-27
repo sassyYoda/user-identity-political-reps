@@ -123,12 +123,13 @@ def sample_set_hashes(hashes, n_sets, seed):
 REQUIRED_FIELDS = ("prompt_id", "condition", "pre_prompt_q_hash", "question")
 
 
-def read_generations(jsonl_path, repair=False):
+def read_generations(jsonl_path, repair=False, fields=REQUIRED_FIELDS + ("answer",)):
     """prompt_id -> record from a generations JSONL.
 
     With repair=True (the collection stage resuming after a kill) a partial
     trailing line is dropped from the file and its prompt regenerated;
-    without it (the analysis stage) any bad line is an error.
+    without it (the analysis stage) any bad line is an error. The steering
+    stage (ticket 05) reads its own record shapes through here via fields.
     """
     jsonl_path = Path(jsonl_path)
     if not jsonl_path.exists():
@@ -145,7 +146,7 @@ def read_generations(jsonl_path, repair=False):
         if not line:
             continue
         record = json.loads(line)
-        missing = [f for f in REQUIRED_FIELDS + ("answer",) if f not in record]
+        missing = [f for f in fields if f not in record]
         if missing:
             raise ValueError(f"generation record missing field(s) {missing}: {line!r}")
         if record["prompt_id"] in records:

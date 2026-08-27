@@ -196,7 +196,7 @@ def random_direction_projections(mean_disp, n_draws, seed, chunk=10_000):
     return out
 
 
-def _average_ranks(values):
+def average_ranks(values):
     values = np.asarray(values, dtype=np.float64)
     order = np.argsort(values, kind="stable")
     ranks = np.empty(len(values))
@@ -217,7 +217,7 @@ def rank_correlation(x, y, seed=0, sampled_draws=100_000):
     n = len(x)
     if n < 3:
         raise ValueError(f"rank correlation over {n} points is meaningless")
-    rx, ry = _average_ranks(x), _average_ranks(y)
+    rx, ry = average_ranks(x), average_ranks(y)
     if rx.std() == 0 or ry.std() == 0:
         raise ValueError("one variable is constant — rank correlation undefined")
 
