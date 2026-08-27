@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GroupKFold, KFold, cross_val_score
 from sklearn.preprocessing import StandardScaler
@@ -43,6 +44,15 @@ def test_shuffle_is_a_permutation_and_seeded():
     assert (labels == np.array(["a", "a", "b", "c"])).all()
 
 
+def test_binary_variant_refuses_conditions_absent_from_data():
+    acts, labels, groups, _ = make_planted_data(n_groups=6)
+    with pytest.raises(ValueError, match="vocabulary"):
+        sweep.sweep_variant(
+            acts, labels, groups, n_splits=2, seed=0,
+            conditions=("democrat", "libertarian"),
+        )
+
+
 def test_chance_level_is_majority_class_share():
     labels = np.array(["a", "a", "a", "b", "c", "c"])
     assert sweep.chance_level(labels) == 0.5
@@ -74,7 +84,7 @@ def test_group_cv_blocks_base_question_leakage():
 
     # deliberately leaky control: identical probe, rows split without groups
     row_split = KFold(n_splits=5, shuffle=True, random_state=0)
-    leaky_acc = cross_val_score(sweep.probe(), acts[0], labels, cv=row_split).mean()
+    leaky_acc = cross_val_score(sweep.make_probe(), acts[0], labels, cv=row_split).mean()
 
     assert grouped_acc < chance + 0.15
     assert leaky_acc > chance + 0.3

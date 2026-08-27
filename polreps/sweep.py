@@ -26,7 +26,7 @@ PROBE_C = 1.0
 PROBE_MAX_ITER = 1000
 
 
-def probe():
+def make_probe():
     return make_pipeline(
         StandardScaler(), LogisticRegression(C=PROBE_C, max_iter=PROBE_MAX_ITER)
     )
@@ -42,7 +42,7 @@ def layer_accuracies(acts, labels, groups, n_splits=5):
     cv = GroupKFold(n_splits=n_splits)
     return np.stack(
         [
-            cross_val_score(probe(), layer, labels, groups=groups, cv=cv)
+            cross_val_score(make_probe(), layer, labels, groups=groups, cv=cv)
             for layer in acts
         ]
     )
@@ -58,10 +58,15 @@ def shuffle_labels(labels, seed):
     return np.random.default_rng(seed).permutation(labels)
 
 
-def read_prompt_table(labels_csv, cache_prompt_ids):
+def join_prompt_table(labels_csv, cache_prompt_ids):
     """Labels and groups from the prompt table, joined by id into cache row order."""
     with open(labels_csv, newline="") as f:
-        by_id = {row["prompt_id"]: row for row in csv.DictReader(f)}
+        table_rows = list(csv.DictReader(f))
+    by_id = {row["prompt_id"]: row for row in table_rows}
+    if len(by_id) != len(table_rows):
+        raise ValueError(
+            "duplicate prompt ids in the prompt table — refusing to pick one"
+        )
 
     missing = [pid for pid in cache_prompt_ids if pid not in by_id]
     extra = set(by_id) - set(cache_prompt_ids)
@@ -83,6 +88,12 @@ def sweep_variant(acts, labels, groups, n_splits, seed, conditions=None):
     variant); None keeps every row for the multinomial probe.
     """
     if conditions is not None:
+        absent = sorted(set(conditions) - set(labels))
+        if absent:
+            raise ValueError(
+                f"conditions {absent} not in the data; observed vocabulary: "
+                f"{sorted(set(labels))}"
+            )
         keep = np.isin(labels, conditions)
         acts, labels, groups = acts[:, keep], labels[keep], groups[keep]
     fold_accs = layer_accuracies(acts, labels, groups, n_splits=n_splits)
@@ -126,22 +137,23 @@ def plot_probe_curve(variants, path):
 def run_sweep(cache_dir, labels_csv, out_stem, binary=None, n_splits=5, seed=0):
     """The sweep stage: cache + prompt table in, figure + numbers + metadata out."""
     acts, prompt_ids = actcache.load_cache(Path(cache_dir))
-    labels, groups = read_prompt_table(labels_csv, prompt_ids)
+    labels, groups = join_prompt_table(labels_csv, prompt_ids)
 
-    variants = {"all conditions (multinomial)": sweep_variant(
-        acts, labels, groups, n_splits, seed
-    )}
+    multi = sweep_variant(acts, labels, groups, n_splits, seed)
+    variants = {"all conditions (multinomial)": multi}
+    binary_variant = None
     if binary is not None:
-        variants[f"{binary[0]} vs {binary[1]}"] = sweep_variant(
+        binary_variant = sweep_variant(
             acts, labels, groups, n_splits, seed, conditions=binary
         )
+        variants[f"{binary[0]} vs {binary[1]}"] = binary_variant
 
     out_stem = Path(out_stem)
     out_stem.parent.mkdir(parents=True, exist_ok=True)
     curve = {
         "n_layers": int(acts.shape[0]),
-        "multinomial": variants["all conditions (multinomial)"],
-        "binary": variants.get(f"{binary[0]} vs {binary[1]}") if binary else None,
+        "multinomial": multi,
+        "binary": binary_variant,
     }
     curve_json = out_stem.with_suffix(".json")
     curve_json.write_text(json.dumps(curve, indent=2) + "\n")

@@ -59,6 +59,18 @@ def test_run_sweep_refuses_label_table_mismatch(planted, tmp_path):
         sweep.run_sweep(planted["cache_dir"], table, tmp_path / "out")
 
 
+def test_run_sweep_refuses_duplicate_table_rows(planted, tmp_path):
+    table = tmp_path / "prompt_table.csv"
+    write_prompt_table(table, planted)
+    with open(table) as f:
+        lines = f.readlines()
+    with open(table, "w") as f:
+        f.writelines(lines + [lines[-1]])  # conflicting duplicate id
+
+    with pytest.raises(ValueError, match="duplicate"):
+        sweep.run_sweep(planted["cache_dir"], table, tmp_path / "out")
+
+
 def test_sweep_is_a_single_command(planted, tmp_path):
     table = tmp_path / "prompt_table.csv"
     write_prompt_table(table, planted)

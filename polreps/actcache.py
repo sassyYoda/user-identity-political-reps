@@ -1,4 +1,4 @@
-"""On-disk activation cache format, shared between caching (03) and probing (04).
+"""On-disk activation cache format, shared between the caching and probing stages.
 
 A cache is a directory:
 
@@ -75,5 +75,9 @@ def load_cache(cache_dir, expect_prompt_ids=None):
                 f"{path.name} has shape {arr.shape}, index.json says "
                 f"({len(prompt_ids)}, {index['d_model']})"
             )
-        layers.append(arr.astype(np.float32))
+        if arr.dtype != np.float32:
+            raise ValueError(
+                f"{path.name} is {arr.dtype}; the cache format is float32 on disk"
+            )
+        layers.append(arr)
     return np.stack(layers), prompt_ids

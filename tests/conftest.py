@@ -2,14 +2,17 @@
 
 make_planted_data is the reference input for the probe-sweep seam and, written
 through actcache, the shared fixture that pins the on-disk cache format for the
-caching stage (ticket 03): a real cache must load through the same
-actcache.load_cache call these tests exercise.
+caching stage: a real cache must load through the same actcache.load_cache call
+these tests exercise.
 """
 
 import numpy as np
 import pytest
 
+from polreps import actcache
+
 CONDITIONS = ("none", "democrat", "republican", "woman")
+SIGNAL_LAYER = 3
 
 
 def make_planted_data(
@@ -17,7 +20,7 @@ def make_planted_data(
     conditions=CONDITIONS,
     n_layers=6,
     d_model=16,
-    signal_layer=3,
+    signal_layer=SIGNAL_LAYER,
     signal_scale=3.0,
     seed=0,
 ):
@@ -43,8 +46,6 @@ def make_planted_data(
 
 @pytest.fixture
 def planted(tmp_path):
-    from polreps import actcache
-
     acts, labels, groups, prompt_ids = make_planted_data()
     cache_dir = tmp_path / "planted_cache"
     actcache.save_cache(cache_dir, acts, prompt_ids)
@@ -53,5 +54,5 @@ def planted(tmp_path):
         "labels": labels,
         "groups": groups,
         "prompt_ids": prompt_ids,
-        "signal_layer": 3,
+        "signal_layer": SIGNAL_LAYER,
     }

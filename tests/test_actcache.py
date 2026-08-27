@@ -71,6 +71,15 @@ def test_load_refuses_row_count_mismatch(tmp_path):
         actcache.load_cache(tmp_path / "cache")
 
 
+def test_load_refuses_non_fp32_layer_files(tmp_path):
+    actcache.save_cache(tmp_path / "cache", toy_acts(), ["a", "b", "c", "d"])
+
+    as_fp64 = np.load(tmp_path / "cache" / "layer_00.npy").astype(np.float64)
+    np.save(tmp_path / "cache" / "layer_00.npy", as_fp64)
+    with pytest.raises(ValueError, match="float32"):
+        actcache.load_cache(tmp_path / "cache")
+
+
 def test_save_refuses_duplicate_prompt_ids(tmp_path):
     with pytest.raises(ValueError, match="duplicate"):
         actcache.save_cache(tmp_path / "cache", toy_acts(), ["a", "a", "c", "d"])
