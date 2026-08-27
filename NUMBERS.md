@@ -238,3 +238,52 @@ survivor-biased (reported with their thinned n).
 | 2026-08-27 | coherence | judged coherence (0-2) across the grid: displacement direction; random direction at ±40k (with judge no-stance rates 0.80 / 0.38) | 1.98-2.00 everywhere; 0.78 / 1.37 | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
 | 2026-08-27 | spot-check | off-target prompts (5 x 9 conditions): answers judged partisan (nonzero slant) at any alpha | 0 of 45 (13 moderate, 32 no-stance) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
 | 2026-08-27 | sign | pre-registered sign prediction evaluated: pooled trend positive as predicted (rho > 0, extremes contrast > 0); the pre-stated asymmetry caveat (liberal side weaker) contradicted by the per-alpha deltas | direction confirmed, caveat not | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+
+## Internal-to-behavioral link (Gemma-3-12B-IT, MATS arc ticket 06)
+
+The stretch question: does the size of a scaffold's activation displacement
+predict how much the scaffold moves the model's actual answers? Under the 16
+identity scaffolds, partisan paraphrases, and controls plus "none" (the ten
+suffix variations were excluded for the generation budget; the exclusion is a
+stated limitation, not a robustness choice), the model answered the base
+questions bare: greedy, 100 new tokens, ticket 04's seeded 60-set subsample,
+through the ticket-04 harness. Ticket 04's own generations answer the appended
+leaning probe, not the question, so this pass was new. Behavioral displacement
+per condition is Cen et al.'s output-embedding measure applied to our
+generations: MiniLM cosine distance from the same matched set's "none" answer
+(all-MiniLM-L6-v2, revision-pinned, sentence-transformers 6.0.0), averaged
+over the 60 sets. The internal side is the registered layer-46 gradient
+artifact. The primary statistic, the secondary, both diagnostics, and a
+positive sign prediction were committed in `polreps/behavioral.py` before any
+generation ran.
+
+The pre-registered prediction failed, and the failure has a clear shape.
+Internal displacement norm does not rank behavioral displacement (rho +0.112,
+p 0.68), and the ideology-specific deviation does no better (rho -0.041).
+What does rank it is surface engagement with the identity: the scaffold-echo
+rate (+0.624) and the answer-length delta (+0.571), both with p in the
+0.01-0.02 exploratory-distrust band but matching what the example answers
+show, answers restructured around the stated identity ("given your identity
+as an American Indian", a "Pacific Islander Voter" section heading). The
+partisan scaffolds are the sharpest cell: they carry the largest internal
+norms and the entire ideology-axis separation, yet they sit near the bottom
+of the behavioral spectrum (Republican 0.223, Democrat 0.209, against a
+demographic top of 0.374 and a syntactic floor of 0.146). Read beside tickets
+04 and 05 the pattern is consistent: the political axis is strongly
+represented and weakly expressed, and the Cen-style output measure mostly
+reads identity-conditioned tailoring rather than the politics the probe sees.
+Caveats stated plainly: 16 conditions is a small n for any rank statistic;
+one embedding model; one greedy generation per cell, so no within-cell
+variance; the echo diagnostic is correlational, not an ablation. A seeded
+draw of raw answers (2 per condition, never filtered) is in
+`artifacts/gemma-3-12b-it/behavioral_link_examples.md`.
+
+| date | stage | metric | value | seed | provenance | registered |
+|---|---|---|---|---|---|---|
+| 2026-08-27 | generate | base-question answers (17 conditions: identity scaffolds, paraphrases, controls, none; 60 sets; greedy, 100 new tokens) | 1,020 | 0 | `artifacts/gemma-3-12b-it/behavioral_generations.jsonl` | pre |
+| 2026-08-27 | embed | behavioral spectrum, mean MiniLM cosine distance from the same set's none answer: top Pacific Islander / left-handed / Asian; bottom Democratic-party paraphrase / person; between-question reference over none answers 0.705 | 0.374 / 0.364 / 0.333; 0.208 / 0.146 | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | pre |
+| 2026-08-27 | correlate | primary statistic (sign prediction: positive): Spearman internal displacement norm at layer 46 vs behavioral displacement. Prediction not supported; informative null | +0.112 (p 0.68, n=16) | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | pre |
+| 2026-08-27 | correlate | secondary: \|projection deviation from the common offset\| vs behavioral displacement; layer-39 robustness for both (norm; deviation) | -0.041 (p 0.88); at 39 +0.403 (p 0.12), +0.279 (p 0.30) | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | pre |
+| 2026-08-27 | diagnose | boring-alternative diagnostics: scaffold-echo rate vs behavioral displacement; mean \|word-count delta\| vs behavioral displacement. Both in the exploratory-distrust band; read with the examples file | +0.624 (p 0.011); +0.571 (p 0.023) | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | pre |
+| 2026-08-27 | diagnose | echo rates at the spectrum ends: Pacific Islander / American Indian / Asian, Black, Hispanic, then man / person | 0.98 / 0.98 / 0.93 each, then 0.18 / 0.17 | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | pre |
+| 2026-08-27 | read | partisan scaffolds, the largest internal displacements on the axis (Republican norm 23,647, deviation +1431.7), sit near the behavioral bottom: Republican / Democrat distance against the demographic top | 0.223 / 0.209 vs 0.374 | 0 | `artifacts/gemma-3-12b-it/behavioral_link.json` | post |
