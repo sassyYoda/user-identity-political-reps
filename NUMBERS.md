@@ -185,3 +185,54 @@ filtered on content) is in `artifacts/gemma-3-12b-it/blackbox_examples.md`.
 | 2026-08-27 | compare | born-in-June control: verbal delta (23/60 scored) against internal deviation; ticket 03's June-conservative loading is internal only, and the verbal side leans the other way | -0.46 vs +538.8 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | post |
 | 2026-08-27 | correlate | verbal mean vs internal projection, Spearman over conditions with >= 10 scored answers, layer 46; layer 39 | +0.438 (p 0.063, n=19); +0.483 (p 0.040) | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
 | 2026-08-27 | correlate | the same restricted to identity scaffolds and controls (the suffix variations verbalize the question content's lean, near the baseline), layer 46; layer 39 | +0.828 (p 0.0086, n=9); +0.720 (p 0.035) | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | post |
+
+## Minimal causal steering (Gemma-3-12B-IT, MATS arc ticket 05)
+
+Steering in the CONTEXT.md sense: during generation, alpha times the
+unit-norm (Republican minus Democrat) displacement from
+`displacements.npz` is added into the layer-46 residual stream (the
+working layer) at every position, through an HF forward hook verified
+numerically against the cached `resid_post` measurement point (max abs
+diff 0). The subject answers each base question with no scaffold; the
+matched-norm control is a seeded random unit direction on the same grid.
+The judge is the subject model itself, unsteered and blind to the
+steering condition (no second model or API judge is configured; the LLM
+slant-judge precedent is Kim et al. 2025 — GPT-4o judge, ICC 0.91
+against human raters — and self-judging is the documented residual
+caveat). Scoring reuses ticket 04's dumb rule with an explicit
+"no discernible stance" option and a separate coherence probe; every one
+of the 1,170 judge answers was scorable. The alpha grid was calibrated
+before the dose-response run under a rule fixed in code (both signs
+coherent at >= 0.8 with zero gibberish): Kim et al.'s Llama-calibrated
+|30| window is off by three orders of magnitude here — layer-46
+residual norms are ~1.3e5 and the R-D displacement norm is 10,554.9, and
+past the cliff the text degenerates *on axis* (at +80k it repeats
+"conservative", at +160k it repeats the name of an Indian right-wing
+party). The pre-registered sign prediction (module docstring, committed
+before any generation): slant increases with alpha, with the ticket-03
+Republican-carried asymmetry making the liberal half the weaker half.
+The headline is honest and two-sided: the pooled dose-response is
+positive and significant but *small* (rho +0.082, about a 0.16-point
+swing on a 4-point scale across an 8x-the-natural-displacement steer),
+and the asymmetry caveat was wrong — per-alpha, only the liberal end
+individually clears its CI. The random control is flat where it is
+readable, and unreadable exactly where it would have to be large: it
+breaks coherence at |40k| while the displacement direction does not —
+the model tolerates ~4x-displacement-norm perturbations along the
+partisan axis but not along a random one, which is itself evidence the
+axis is meaningful, and it makes the random extreme cells
+survivor-biased (reported with their thinned n).
+
+| date | stage | metric | value | seed | provenance | registered |
+|---|---|---|---|---|---|---|
+| 2026-08-27 | calibrate | coherence cliff on the displacement direction (ladder 2.5k-160k, both signs, 6 questions, 120 new tokens): first magnitude failing the fixed rule; resulting grid | \|80,000\|; ±40k, ±20k, 0 | 1 | `artifacts/gemma-3-12b-it/steering_calibration.json` | pre |
+| 2026-08-27 | generate | steered generations (60 political questions, ticket 04's seeded subsample, x 9 direction-alpha conditions + 5 off-target prompts x 9; greedy, 200 new tokens) | 585 | 0 | `artifacts/gemma-3-12b-it/steering_generations.jsonl` | pre |
+| 2026-08-27 | judge | slant + coherence probes answered by the unsteered subject model; unscorable answers | 1,170; 0 | — | `artifacts/gemma-3-12b-it/steering_judgments.jsonl` | pre |
+| 2026-08-27 | dose-response | primary statistic, displacement direction: pooled Spearman alpha-vs-slant over scored political generations, within-question permutation p (10,000 draws) | rho +0.082 (p 0.0031, n=295, 60 questions) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | dose-response | matched-norm random control, same statistic (its \|40k\| cells thinned to 12 and 37 scored by the coherence collapse below) | rho +0.043 (p 0.20, n=229) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | dose-response | extremes contrast, paired within question: slant(+40k) − slant(−40k), displacement; random (survivor-biased n) | +0.16 ± 0.10 (57 pairs); +0.25 ± 0.32 (8 pairs) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | dose-response | cell means, displacement −40k / −20k / 0 / +20k / +40k (58-60 of 60 scored per cell; no-stance rate ≤ 0.03 throughout) | −0.05 / +0.03 / +0.05 / +0.00 / +0.10 | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | dose-response | per-alpha paired deltas vs alpha=0, displacement: −40k / −20k / +20k / +40k. Only −40k individually excludes 0; the pre-stated "liberal half weaker" caveat did not materialize | −0.103 ± 0.093 / −0.017 / −0.052 / +0.051 ± 0.088 | 0 | `artifacts/gemma-3-12b-it/steering.json` | post |
+| 2026-08-27 | coherence | judged coherence (0-2) across the grid: displacement direction; random direction at ±40k (with judge no-stance rates 0.80 / 0.38) | 1.98-2.00 everywhere; 0.78 / 1.37 | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | spot-check | off-target prompts (5 x 9 conditions): answers judged partisan (nonzero slant) at any alpha | 0 of 45 (13 moderate, 32 no-stance) | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
+| 2026-08-27 | sign | pre-registered sign prediction evaluated: pooled trend positive as predicted (rho > 0, extremes contrast > 0); the pre-stated asymmetry caveat (liberal side weaker) contradicted by the per-alpha deltas | direction confirmed, caveat not | 0 | `artifacts/gemma-3-12b-it/steering.json` | pre |
