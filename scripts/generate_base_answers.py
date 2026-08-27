@@ -15,12 +15,13 @@ stopped. Embedding and the correlation are a separate stage
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 from polreps import blackbox
 from polreps.caching import load_model
 from polreps.config import ARTIFACTS, MODEL_REVISION, artifacts_dir
-from polreps.gradient import condition_role
+from polreps.gradient import NON_IDENTITY, condition_role
 from polreps.pairs import condition_order
 from polreps.runmeta import save_run_metadata
 
@@ -33,7 +34,8 @@ def read_rows(table_csv):
 def keep_condition(condition):
     if condition == blackbox.BASELINE:
         return True
-    return condition_role(condition) != "non-identity variation"
+    condition_role(condition)  # loud on vocabulary drift
+    return condition not in NON_IDENTITY
 
 
 def main():
@@ -65,34 +67,55 @@ def main():
     print(f"{len(rows)} prompts ({len(sampled)} sets x {n_conditions} conditions)")
 
     done = blackbox.read_generations(args.out, repair=True)
+    # the collection loop repeats this check, but the finished-run branch
+    # below would otherwise accept a superset file (e.g. ticket 04's) as done
+    blackbox.assert_no_foreign_records(done, rows, args.out)
+
+    config = {
+        "scaffold_table": args.scaffold_table,
+        "control_table": args.control_table,
+        "n_sets": args.n_sets, "n_rows": len(rows), "limit": args.limit,
+        "decoding": "greedy (do_sample=False)",
+        "max_new_tokens": args.max_new_tokens,
+        "prompt": "base question, no probe",
+    }
+    meta_path = Path(args.out).with_name(Path(args.out).name + ".meta.json")
     if set(r["prompt_id"] for r in rows) - set(done):
+        # the sidecar is stamped before generating (and re-stamped after), so
+        # a resume can be checked against the killed run's settings; --limit
+        # and its row count are the only fields a resume may change
+        if meta_path.exists():
+            previous = json.loads(meta_path.read_text())
+            drift = [
+                key for key in config
+                if key not in ("limit", "n_rows")
+                and previous["config"].get(key) != config[key]
+            ]
+            if drift or previous["seed"] != args.seed:
+                raise ValueError(
+                    f"resume settings differ from {meta_path.name} on "
+                    f"{drift or ['seed']} — a mixed-settings file would carry "
+                    "one run's provenance for another run's answers"
+                )
+        save_run_metadata(args.out, seed=args.seed, config=config,
+                          model_revision=MODEL_REVISION)
         model = load_model(args.device)
         computed = blackbox.collect_answers(
             args.out, rows,
             lambda text: blackbox.generate_answer(model, text, args.max_new_tokens),
             prompt_fn=lambda question: question,
         )
+        # re-stamp so the sidecar records the invocation that finished the file
+        save_run_metadata(args.out, seed=args.seed, config=config,
+                          model_revision=MODEL_REVISION)
     else:
         computed = 0
         print("all prompts already answered")
-
-    # greedy decoding, so the revision is the reproducibility anchor and the
-    # seed only names the set subsample; a no-op re-invocation must not
-    # re-stamp the sidecar of the run that did the work
-    meta_path = Path(args.out).with_name(Path(args.out).name + ".meta.json")
-    if computed > 0 or not meta_path.exists():
-        save_run_metadata(
-            args.out, seed=args.seed,
-            config={
-                "scaffold_table": args.scaffold_table,
-                "control_table": args.control_table,
-                "n_sets": args.n_sets, "n_rows": len(rows), "limit": args.limit,
-                "decoding": "greedy (do_sample=False)",
-                "max_new_tokens": args.max_new_tokens,
-                "prompt": "base question, no probe",
-            },
-            model_revision=MODEL_REVISION,
-        )
+        # a no-op re-invocation must not stamp provenance for answers it
+        # never generated; a lost sidecar stays lost, loudly
+        if not meta_path.exists():
+            print(f"warning: {meta_path.name} is missing and this invocation "
+                  "generated nothing, so it will not be reconstructed")
     print(f"collected {computed} new answers into {args.out}")
 
 

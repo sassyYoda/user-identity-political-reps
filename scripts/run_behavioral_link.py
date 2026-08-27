@@ -45,11 +45,14 @@ def main():
     correlation = result["rank_correlation"]
     for key in ("primary", "secondary"):
         stat = correlation[key]
-        print(
-            f"{key} ({stat['internal']}, layer {stat['layer']}): "
-            f"rho {stat['rho']:+.3f}, p {stat['p']:.4g}, "
-            f"n={result['n_conditions']}"
-        )
+        if stat["rho"] is None:
+            print(f"{key} ({stat['internal']}, layer {stat['layer']}): {stat['note']}")
+        else:
+            print(
+                f"{key} ({stat['internal']}, layer {stat['layer']}): "
+                f"rho {stat['rho']:+.3f}, p {stat['p']:.4g}, "
+                f"n={result['n_conditions']}"
+            )
     for name, stat in correlation["diagnostics"].items():
         if stat["rho"] is None:
             print(f"diagnostic {name}: {stat['note']}")

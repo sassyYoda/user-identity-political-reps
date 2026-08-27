@@ -102,6 +102,10 @@ def test_paired_displacement_requires_complete_sets():
     empty = dict(records[0], answer="  ")
     with pytest.raises(ValueError, match="empty"):
         behavioral.paired_output_displacement(records[1:] + [empty], embed_stub)
+    # one set passes completeness but yields NaN ci95 and an empty
+    # between-question reference; refuse loudly instead
+    with pytest.raises(ValueError, match="at least 2"):
+        behavioral.paired_output_displacement(make_records(n_sets=1), embed_stub)
 
 
 def test_link_recovers_a_planted_monotone_link():
@@ -152,6 +156,32 @@ def test_collect_answers_prompt_fn_leaves_the_question_bare(tmp_path):
     )
     assert asked == [r["question"] for r in rows]
     assert not any(blackbox.PROBE in text for text in asked)
+
+
+def test_collect_answers_refuses_to_resume_with_a_different_prompt_kind(tmp_path):
+    rows = [
+        {k: r[k] for k in blackbox.REQUIRED_FIELDS}
+        for r in make_records(n_sets=2)
+    ]
+    jsonl = tmp_path / "generations.jsonl"
+    blackbox.collect_answers(jsonl, rows[:3], lambda text: "0.5",
+                             prompt_fn=lambda question: question)
+    # same ids, but the resume would append probe-prompted answers to a
+    # bare-prompted file
+    with pytest.raises(ValueError, match="different prompt"):
+        blackbox.collect_answers(jsonl, rows, lambda text: "0.5")
+
+
+def test_foreign_records_are_refused_even_when_no_generation_is_needed():
+    rows = [
+        {k: r[k] for k in blackbox.REQUIRED_FIELDS}
+        for r in make_records(n_sets=2)
+    ]
+    done = {r["prompt_id"]: r for r in make_records(n_sets=3)}
+    with pytest.raises(ValueError, match="refusing to mix"):
+        blackbox.assert_no_foreign_records(done, rows, "generations.jsonl")
+    subset = {r["prompt_id"]: r for r in make_records(n_sets=2)[:5]}
+    blackbox.assert_no_foreign_records(subset, rows, "generations.jsonl")
 
 
 def test_run_behavioral_link_writes_artifacts(tmp_path):

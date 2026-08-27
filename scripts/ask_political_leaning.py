@@ -54,6 +54,9 @@ def main():
     print(f"{len(rows)} prompts ({len(sampled)} sets x {n_conditions} conditions)")
 
     done = blackbox.read_generations(args.out, repair=True)
+    # the collection loop repeats this check, but the finished-run branch
+    # below would otherwise accept a superset file as this run's output
+    blackbox.assert_no_foreign_records(done, rows, args.out)
     if set(r["prompt_id"] for r in rows) - set(done):
         model = load_model(args.device)
         computed = blackbox.collect_answers(

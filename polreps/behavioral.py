@@ -38,14 +38,13 @@ flat result here is a live possibility and, per the spec, an acceptable one.
 
 import json
 import math
-import random
 import re
 from pathlib import Path
 
 import numpy as np
 from matplotlib.figure import Figure
 
-from polreps.blackbox import read_generations
+from polreps.blackbox import read_generations, select_examples
 from polreps.gradient import ROLE_COLORS, rank_correlation
 from polreps.runmeta import save_run_metadata
 
@@ -55,8 +54,12 @@ EMBEDDER_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 
 BASELINE = "none"
 
-# scaffold words an answer can echo; everything else in the templates is
-# first-person plumbing
+# scaffold words an answer can echo, with the first-person plumbing stripped.
+# The residue is not pure identity: "party", "member", "born" survive and can
+# fire on topical mentions in answers to political questions, so the echo
+# rate carries a term-level false-positive floor (measured ~3-12% on the
+# scaffold-free "none" answers for the partisan conditions) — a diagnostic,
+# not an ablation
 _STOPWORDS = {"i", "m", "am", "a", "an", "the", "was", "do", "not", "as", "or", "in", "of"}
 
 
@@ -110,6 +113,11 @@ def paired_output_displacement(records, embed_fn, baseline=BASELINE):
     conditions = sorted({c for _, c in answer_of} - {baseline})
     if not conditions:
         raise ValueError(f"only {baseline!r} rows present; nothing to compare")
+    if len(sets) < 2:
+        raise ValueError(
+            f"{len(sets)} matched set(s) — the CI and the between-question "
+            "reference need at least 2"
+        )
     absent = [
         (s, c) for c in [baseline] + conditions for s in sets if (s, c) not in answer_of
     ]
@@ -277,8 +285,10 @@ def plot_behavioral_link(result, path):
         ax.margins(x=0.12)
         stat = correlation[stat_key]
         ax.set_title(
-            f"{stat_key}: Spearman {stat['rho']:+.3f} (p {stat['p']:.3g}, "
-            f"n={result['n_conditions']})", fontsize=9,
+            f"{stat_key}: undefined ({stat['note']})" if stat["rho"] is None
+            else f"{stat_key}: Spearman {stat['rho']:+.3f} (p {stat['p']:.3g}, "
+                 f"n={result['n_conditions']})",
+            fontsize=9,
         )
         ax.set_xlabel(xlabel % result["working_layer"]
                       if field == "internal_norm"
@@ -294,20 +304,6 @@ def plot_behavioral_link(result, path):
     )
     fig.tight_layout()
     fig.savefig(path, dpi=200, bbox_inches="tight")
-
-
-def select_examples(records, n_per_condition, seed):
-    """Seeded random draw of raw base-question answers per condition — never
-    cherry-picked (same discipline as ticket 04, without its scorer)."""
-    by_condition = {}
-    for record in records:
-        by_condition.setdefault(record["condition"], []).append(record)
-    rng = random.Random(seed)
-    examples = []
-    for condition in sorted(by_condition):
-        pool = sorted(by_condition[condition], key=lambda r: r["prompt_id"])
-        examples.extend(rng.sample(pool, min(n_per_condition, len(pool))))
-    return examples
 
 
 def write_examples_markdown(examples, per_set, n_per_condition, seed, path):
@@ -355,7 +351,7 @@ def run_behavioral_link(generations_jsonl, gradient_json, out_stem, embed_fn,
     out_png = out_stem.with_suffix(".png")
     plot_behavioral_link(result, out_png)
     out_examples = out_stem.parent / f"{out_stem.name}_examples.md"
-    examples = select_examples(records, examples_per_condition, seed)
+    examples = select_examples(records, examples_per_condition, seed, tag_fn=None)
     write_examples_markdown(examples, behavioral["per_set"],
                             examples_per_condition, seed, out_examples)
 

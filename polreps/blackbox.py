@@ -155,12 +155,30 @@ def read_generations(jsonl_path, repair=False, fields=REQUIRED_FIELDS + ("answer
     return records
 
 
+def assert_no_foreign_records(done, rows, jsonl_path):
+    """Refuse a generations file holding prompt ids outside these rows. The
+    collection loop calls this, but so must any 'already finished?' check
+    that skips the loop — a superset file (ticket 04's 27-condition run over
+    ticket 06's 17-condition rows) would otherwise silently pass for the
+    finished run."""
+    unknown = set(done) - {row["prompt_id"] for row in rows}
+    if unknown:
+        raise ValueError(
+            f"{jsonl_path} holds {len(unknown)} prompt ids not in these rows "
+            "— refusing to mix runs"
+        )
+
+
 def collect_answers(jsonl_path, rows, generate_fn, log_every=20, prompt_fn=ask_prompt):
     """Fill (or finish filling) a generations JSONL; returns prompts computed.
 
     generate_fn(user_text) -> the model's answer for one fully assembled
     prompt, prompt_fn(question) — by default the scaffolded question with the
-    leaning probe appended; ticket 06 passes the question through bare. One
+    leaning probe appended; ticket 06 passes the question through bare. The
+    assembled prompt is stored per record, and a resume whose prompt_fn
+    disagrees with a stored prompt is refused: probe-prompted and
+    bare-prompted records are otherwise byte-identical apart from the answer,
+    so a cross-run resume would interleave the two kinds undetectably. One
     JSON line per prompt, appended and flushed as it lands, so a killed run
     resumes by diffing the file against the rows.
     """
@@ -174,12 +192,16 @@ def collect_answers(jsonl_path, rows, generate_fn, log_every=20, prompt_fn=ask_p
             raise ValueError(f"generation row missing field(s) {missing}")
 
     done = read_generations(jsonl_path, repair=True)
-    unknown = set(done) - set(ids)
-    if unknown:
-        raise ValueError(
-            f"{jsonl_path} holds {len(unknown)} prompt ids not in these rows "
-            "— refusing to mix runs"
-        )
+    assert_no_foreign_records(done, rows, jsonl_path)
+    for row in rows:
+        existing = done.get(row["prompt_id"])
+        if existing and existing.get("prompt", prompt_fn(row["question"])) != (
+            prompt_fn(row["question"])
+        ):
+            raise ValueError(
+                f"{jsonl_path} record {row['prompt_id']!r} was generated from a "
+                "different prompt — refusing to mix prompt kinds in one file"
+            )
     todo = [row for row in rows if row["prompt_id"] not in done]
     if done and todo:
         print(f"resuming: {len(done)}/{len(rows)} answers already collected")
@@ -188,9 +210,10 @@ def collect_answers(jsonl_path, rows, generate_fn, log_every=20, prompt_fn=ask_p
     computed, started = 0, time.monotonic()
     with open(jsonl_path, "a") as f:
         for row in todo:
-            answer = generate_fn(prompt_fn(row["question"]))
+            prompt = prompt_fn(row["question"])
             record = {field: row[field] for field in REQUIRED_FIELDS}
-            record["answer"] = answer
+            record["prompt"] = prompt
+            record["answer"] = generate_fn(prompt)
             f.write(json.dumps(record) + "\n")
             f.flush()
             computed += 1
@@ -386,9 +409,11 @@ def compare_with_internal(summary, gradient_result, min_scored=10, seed=0):
     }
 
 
-def select_examples(records, n_per_condition, seed):
+def select_examples(records, n_per_condition, seed, tag_fn=score_answer):
     """Seeded random draw of raw answers per condition, from all generations
-    regardless of how (or whether) they scored — never cherry-picked."""
+    regardless of how (or whether) they scored — never cherry-picked. tag_fn
+    labels each drawn answer (the scored category here); None skips the
+    label, which is how ticket 06 reuses the draw for unscored answers."""
     by_condition = {}
     for record in records:
         by_condition.setdefault(record["condition"], []).append(record)
@@ -397,7 +422,10 @@ def select_examples(records, n_per_condition, seed):
     for condition in sorted(by_condition):
         pool = sorted(by_condition[condition], key=lambda r: r["prompt_id"])
         for record in rng.sample(pool, min(n_per_condition, len(pool))):
-            examples.append(dict(record, category=score_answer(record["answer"])))
+            example = dict(record)
+            if tag_fn is not None:
+                example["category"] = tag_fn(record["answer"])
+            examples.append(example)
     return examples
 
 
