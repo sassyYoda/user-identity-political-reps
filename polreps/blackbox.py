@@ -155,13 +155,14 @@ def read_generations(jsonl_path, repair=False, fields=REQUIRED_FIELDS + ("answer
     return records
 
 
-def collect_answers(jsonl_path, rows, generate_fn, log_every=20):
+def collect_answers(jsonl_path, rows, generate_fn, log_every=20, prompt_fn=ask_prompt):
     """Fill (or finish filling) a generations JSONL; returns prompts computed.
 
     generate_fn(user_text) -> the model's answer for one fully assembled
-    prompt (the scaffolded question with the probe appended). One JSON line
-    per prompt, appended and flushed as it lands, so a killed run resumes by
-    diffing the file against the rows.
+    prompt, prompt_fn(question) — by default the scaffolded question with the
+    leaning probe appended; ticket 06 passes the question through bare. One
+    JSON line per prompt, appended and flushed as it lands, so a killed run
+    resumes by diffing the file against the rows.
     """
     jsonl_path = Path(jsonl_path)
     ids = [row["prompt_id"] for row in rows]
@@ -187,7 +188,7 @@ def collect_answers(jsonl_path, rows, generate_fn, log_every=20):
     computed, started = 0, time.monotonic()
     with open(jsonl_path, "a") as f:
         for row in todo:
-            answer = generate_fn(ask_prompt(row["question"]))
+            answer = generate_fn(prompt_fn(row["question"]))
             record = {field: row[field] for field in REQUIRED_FIELDS}
             record["answer"] = answer
             f.write(json.dumps(record) + "\n")
