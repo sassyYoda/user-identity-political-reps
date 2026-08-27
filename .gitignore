@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data and cached artifacts (activations are hundreds of MB; re-derive, don't commit)
+activations/
+data/raw/
+*.pt
+*.npz
+*.safetensors
+
+# OS
+.DS_Store
+
+# Planning docs stay local
+.scratch/
+.planning/
+plans/
+PLAN.md
+SPEC.md
+*.plan.md
+
+# Agentic development config stays local
+CLAUDE.md
+AGENTS.md
+.claude/
+docs/agents/
+docs/adr/
+CONTEXT.md
+CONTEXT-MAP.md
