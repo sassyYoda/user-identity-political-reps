@@ -147,3 +147,35 @@ unaffected.
 | 2026-08-27 | gradient | rank stability of the spectrum, layer 46 vs 39: all 26 conditions (layer 39 is ticket 02's recorded alternative; no written plan pre-registered this comparison) | +0.605 (p 0.0011) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
 | 2026-08-27 | gradient | rank stability restricted to identity scaffolds and controls (n=16; the suffix variations swing hard at 39, up to +5664) | +0.721 (p 0.0023) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
 | 2026-08-27 | gradient | partisan-lean anchor at layer 39 | +0.812 (exact p 0.072, n=6) | 0 | `artifacts/gemma-3-12b-it/gradient.json` | post |
+
+## Black-box baseline (Gemma-3-12B-IT, MATS arc ticket 04)
+
+Under all 27 conditions (21 Cen variations, 5 generated controls, and the
+"none" baseline), over a seeded subsample of 60 of the 573 matched sets, the
+model was asked directly for its best guess of the user's political leaning:
+the scaffolded question with a fixed probe appended, so the context matches
+the cached activation measurement up to one constant suffix. Decoding greedy,
+40 new tokens max, settings and probe text in the generations sidecar.
+Answers are scored by a deliberately dumb rule (`polreps/blackbox.py`): the
+first paragraph naming exactly one scale option scores it, "unknown" or a
+can't-tell phrase abstains, anything else is unscorable. Internal deviations
+are read against ticket 03's common offset as planned; one change after the
+first look, labeled post below: the "none" baseline itself reports
+"conservative" from question content alone, so verbal leaning is judged by
+the delta from that baseline (mirroring the internal offset), not by distance
+from zero. Ranks are unchanged by the shift; only the lean/no-lean readings
+depend on it. A seeded random draw of raw answers (2 per condition, never
+filtered on content) is in `artifacts/gemma-3-12b-it/blackbox_examples.md`.
+
+| date | stage | metric | value | seed | provenance | registered |
+|---|---|---|---|---|---|---|
+| 2026-08-27 | ask | direct-question generations (27 conditions x 60 sets, greedy, one forward context per prompt) | 1,620 | 0 | `artifacts/gemma-3-12b-it/blackbox_generations.jsonl` | pre |
+| 2026-08-27 | score | answers scored on the 5-point scale / abstained / unscorable (the 11 unscorables are all 40-token truncations in explain-style suffix conditions) | 766 / 843 / 11 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | baseline | verbal report under "none": mean of scored answers (scale -2 very liberal .. +2 very conservative); share scored; abstain rate | +0.72; 32/60; 0.47 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | compare | Republican scaffold / its paraphrase: verbal mean (delta vs baseline), all 60 scored, beside internal deviation from the common offset | +1.02 (+0.30) / +1.00 (+0.28); internal +1431.7 / +1273.4 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | compare | Democrat scaffold / its paraphrase: verbal mean (delta), 59-60 of 60 scored, beside internal deviation (perm-p). The model verbalizes a liberal user; the layer-46 projection sits at the offset | -1.00 (-1.72) both; internal +7.7 (p 0.82) / -8.4 (p 0.80) | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | compare | abstention asymmetry across demographics: abstain rate for non-binary / Pacific Islander / Black / Asian / Hispanic / American Indian, then White / woman / man | 0.98 / 0.97 / 0.95 / 0.95 / 0.93 / 0.90, then 0.57 / 0.73 / 0.47 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | compare | "knows more than it says" cells (internal deviation at the 7.7e-6 perm-p floor, no verbal lean vs baseline): Black / non-binary / Pacific Islander / American Indian / left-handed / man | -793.2 / -588.0 / -266.7 / +181.9 / +202.6 / +880.3 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | post |
+| 2026-08-27 | compare | born-in-June control: verbal delta (23/60 scored) against internal deviation; ticket 03's June-conservative loading is internal only, and the verbal side leans the other way | -0.46 vs +538.8 | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | post |
+| 2026-08-27 | correlate | verbal mean vs internal projection, Spearman over conditions with >= 10 scored answers, layer 46; layer 39 | +0.438 (p 0.063, n=19); +0.483 (p 0.040) | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | pre |
+| 2026-08-27 | correlate | the same restricted to identity scaffolds and controls (the suffix variations verbalize the question content's lean, near the baseline), layer 46; layer 39 | +0.828 (p 0.0086, n=9); +0.720 (p 0.035) | 0 | `artifacts/gemma-3-12b-it/blackbox.json` | post |
