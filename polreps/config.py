@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 MODEL_NAME = "google/gemma-2-9b-it"
 MODEL_REVISION = "11c9b309abf73637e4b6f9a3fa1e92e615547819"
 
+# Cen et al. 2025 release (arXiv:2509.18446); revision pinned 2026-08-26
+DATASET_NAME = "sarahcen/llm-election-data-2024"
+DATASET_REVISION = "7bb3c18c2eadfc3f96db0dd394768496f7107a79"
+
 REPO = Path(__file__).resolve().parents[1]
 DATA_RAW = REPO / "data" / "raw"
 ACTIVATIONS = REPO / "activations"
