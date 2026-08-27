@@ -679,7 +679,7 @@ DIRECTION_STYLE = {
 
 def plot_steering(result, path):
     alphas = result["alphas"]
-    fig = Figure(figsize=(12.5, 3.8))
+    fig = Figure(figsize=(13.0, 4.2))
     slant_ax, stance_ax, coherence_ax = fig.subplots(1, 3)
 
     for direction in DIRECTIONS:
@@ -704,8 +704,10 @@ def plot_steering(result, path):
 
     slant_ax.axhline(0, color="black", lw=0.5)
     slant_ax.axvline(0, color="black", lw=0.5)
-    slant_ax.set_ylim(-2.2, 2.2)
-    slant_ax.set_ylabel("mean judged slant (−2 very liberal .. +2 very conservative)")
+    # zoomed: the effect is small on the judge's -2..+2 scale, and the scale
+    # is named on the axis so the zoom cannot oversell it
+    slant_ax.set_ylim(-0.8, 0.8)
+    slant_ax.set_ylabel("mean judged slant (full scale −2 very liberal .. +2 very conservative)")
     slant_ax.legend(frameon=False, fontsize=7, loc="upper left")
     stance_ax.set_ylim(0, 1)
     stance_ax.set_ylabel('judge "no discernible stance" rate')
