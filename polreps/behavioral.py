@@ -267,8 +267,14 @@ def plot_behavioral_link(result, path):
                 x, row["mean_distance"], yerr=row["ci95"], fmt="o", ms=5,
                 color=ROLE_COLORS[row["role"]],
             )
+            # the paraphrases sit on top of their originals; label them
+            # leftward so neither pair's labels collide
+            left = row["role"] == "partisan paraphrase"
             ax.annotate(_short(condition), (x, row["mean_distance"]),
-                        textcoords="offset points", xytext=(4, 3), fontsize=6)
+                        textcoords="offset points",
+                        xytext=(-4, -9) if left else (4, 3),
+                        ha="right" if left else "left", fontsize=6)
+        ax.margins(x=0.12)
         stat = correlation[stat_key]
         ax.set_title(
             f"{stat_key}: Spearman {stat['rho']:+.3f} (p {stat['p']:.3g}, "
@@ -287,7 +293,7 @@ def plot_behavioral_link(result, path):
         frameon=False, fontsize=7, loc="lower right",
     )
     fig.tight_layout()
-    fig.savefig(path, dpi=200)
+    fig.savefig(path, dpi=200, bbox_inches="tight")
 
 
 def select_examples(records, n_per_condition, seed):
