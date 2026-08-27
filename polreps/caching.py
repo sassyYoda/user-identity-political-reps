@@ -225,7 +225,7 @@ def load_model(device=None):
     import torch
     from transformer_lens.model_bridge import TransformerBridge
 
-    hf_token()  # puts HF_TOKEN from .env into the environment; Gemma-2 is gated
+    hf_token()  # puts HF_TOKEN from .env into the environment; Gemma is gated
     model = TransformerBridge.boot_transformers(
         MODEL_NAME, revision=MODEL_REVISION,
         device=pick_device(device), dtype=torch.bfloat16,

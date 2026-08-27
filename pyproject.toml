@@ -1,7 +1,7 @@
 [project]
 name = "polreps"
 version = "0.1.0"
-description = "Does user-identity scaffolding displace Gemma-2-9B-IT activations along an interpretable ideology direction?"
+description = "Does user-identity scaffolding displace Gemma-3-12B-IT activations along an interpretable ideology direction?"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "datasets==5.0.1",

@@ -86,6 +86,16 @@ def join_prompt_table(labels_csv, cache_prompt_ids,
     )
 
 
+def require_conditions(labels, conditions):
+    """Fail loudly if any requested condition is absent from the labels."""
+    absent = sorted(set(conditions) - set(labels))
+    if absent:
+        raise ValueError(
+            f"conditions {absent} not in the data; observed vocabulary: "
+            f"{sorted(set(labels))}"
+        )
+
+
 def sweep_variant(acts, labels, groups, n_splits, seed, conditions=None):
     """One accuracy curve plus its shuffled-label reference, JSON-ready.
 
@@ -93,12 +103,7 @@ def sweep_variant(acts, labels, groups, n_splits, seed, conditions=None):
     variant); None keeps every row for the multinomial probe.
     """
     if conditions is not None:
-        absent = sorted(set(conditions) - set(labels))
-        if absent:
-            raise ValueError(
-                f"conditions {absent} not in the data; observed vocabulary: "
-                f"{sorted(set(labels))}"
-            )
+        require_conditions(labels, conditions)
         keep = np.isin(labels, conditions)
         acts, labels, groups = acts[:, keep], labels[keep], groups[keep]
     fold_accs = layer_accuracies(acts, labels, groups, n_splits=n_splits)
@@ -143,6 +148,11 @@ def run_sweep(cache_dir, labels_csv, out_stem, binary=None, n_splits=5, seed=0):
     """The sweep stage: cache + prompt table in, figure + numbers + metadata out."""
     acts, prompt_ids = actcache.load_cache(Path(cache_dir))
     labels, groups = join_prompt_table(labels_csv, prompt_ids)
+
+    # a misspelled binary pair must fail here, before the hour of multinomial
+    # fits, not after them
+    if binary is not None:
+        require_conditions(labels, binary)
 
     multi = sweep_variant(acts, labels, groups, n_splits, seed)
     variants = {"all conditions (multinomial)": multi}

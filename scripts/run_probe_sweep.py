@@ -1,9 +1,8 @@
 """Per-layer probe sweep over a cached activation run.
 
     uv run python scripts/run_probe_sweep.py \
-        --cache activations/main \
-        --labels data/prompt_table.csv \
-        --out artifacts/probe_curve
+        --cache activations/gemma-3-12b-it/main \
+        --labels artifacts/prompt_table.csv
 
 Writes <out>.png (accuracy-vs-layer with chance and shuffled-label references),
 <out>.json (per-layer numbers), and .meta.json sidecars for both. The labels
@@ -15,6 +14,7 @@ pass --binary with the actual names.
 
 import argparse
 
+from polreps.config import artifacts_stem_for_cache
 from polreps.sweep import run_sweep
 
 
@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cache", required=True)
     parser.add_argument("--labels", required=True)
-    parser.add_argument("--out", default="artifacts/probe_curve")
+    parser.add_argument("--out", default=None, help="default: artifacts/<cache's model>/probe_curve")
     parser.add_argument(
         "--binary", nargs=2, metavar=("COND", "COND"),
         default=("democrat", "republican"),
@@ -30,6 +30,12 @@ def main():
     parser.add_argument("--splits", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
+    if args.out is None:
+        # the default output follows the cache's model, so sweeping the
+        # replication cache can't overwrite the subject model's artifacts
+        args.out = artifacts_stem_for_cache(args.cache, "probe_curve")
+        if args.out is None:
+            parser.error(f"--out is required when --cache is not under activations/<model>/: {args.cache}")
 
     curve = run_sweep(
         args.cache, args.labels, args.out,

@@ -1,8 +1,8 @@
 """The caching stage's resumable-writer mechanics, tested without the model.
 
 compute_fn is injected, so interruption/resume/refusal behavior runs in
-milliseconds here; the marked-slow smoke test at the bottom is the only place
-the real Gemma-2-9B-IT forward pass is exercised.
+milliseconds here; the marked-slow smoke tests at the bottom are the only
+place the real subject model's forward pass is exercised.
 """
 
 import numpy as np

@@ -1,15 +1,17 @@
 # user-identity-political-reps
 
 Does user-identity scaffolding ("I am a Democrat", "I am a woman", ...) displace
-Gemma-2-9B-IT's activations along an interpretable ideology direction? A
+Gemma-3-12B-IT's activations along an interpretable ideology direction? A
 mechanistic follow-up to the behavioral findings of Cen et al. 2025
-(arXiv:2509.18446).
+(arXiv:2509.18446). Gemma-2-9B-IT is the second-model replication anchor; its
+cache and artifacts live under model-scoped paths alongside the Gemma-3 ones.
 
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and a Hugging Face account with access
-to the gated [google/gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it)
-repo.
+to the gated [google/gemma-3-12b-it](https://huggingface.co/google/gemma-3-12b-it)
+repo (and [google/gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it) to
+re-run the replication).
 
 ```
 uv sync
@@ -18,7 +20,7 @@ uv run python scripts/check_model_access.py
 ```
 
 The check confirms the token can see the gated model at the pinned revision and
-writes `artifacts/model_access_check.json`.
+writes `artifacts/gemma-3-12b-it/model_access_check.json`.
 
 ## Layout
 
@@ -28,7 +30,9 @@ writes `artifacts/model_access_check.json`.
 - `tests/` — `uv run pytest` runs the fast suite; tests marked `slow` (network or
   real model) run with `uv run pytest -m slow`
 - `data/raw/`, `activations/`, `artifacts/` — downloads, cached residual-stream
-  activations, and produced figures/vectors; all gitignored, all re-derivable
+  activations, and produced figures/vectors; all gitignored, all re-derivable.
+  Per-model outputs sit under `activations/<model>/` and `artifacts/<model>/`;
+  cross-model files (the prompt table, replication figures) at the roots
 - `NUMBERS.md` — source of truth for every measured result
 
 ## Reproducibility

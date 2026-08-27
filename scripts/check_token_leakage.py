@@ -1,9 +1,9 @@
 """Post-hoc leakage diagnostic for the real probe curve (ticket 05).
 
     uv run python scripts/check_token_leakage.py \
-        --cache activations/main \
+        --cache activations/gemma-3-12b-it/main \
         --labels artifacts/prompt_table.csv \
-        --out artifacts/leakage_check
+        --layers 0 1 10
 
 The real curve came out far above chance from layer 0, the pre-registered
 signature of token-identity leakage rather than a computed representation. The
@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 
 from polreps import actcache
+from polreps.config import artifacts_stem_for_cache
 from polreps.runmeta import save_run_metadata
 from polreps.sweep import join_prompt_table, sweep_variant
 
@@ -40,11 +41,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cache", required=True)
     parser.add_argument("--labels", required=True)
-    parser.add_argument("--out", default="artifacts/leakage_check")
-    parser.add_argument("--layers", type=int, nargs="+", default=[0, 1, 8])
+    parser.add_argument("--out", default=None, help="default: artifacts/<cache's model>/leakage_check")
+    # no default: layer 0, layer 1, and the model's own peak layer — the peak
+    # is model-specific, so a baked-in list would silently test the wrong layer
+    parser.add_argument("--layers", type=int, nargs="+", required=True)
     parser.add_argument("--splits", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
+    if args.out is None:
+        # the default output follows the cache's model (see run_probe_sweep)
+        args.out = artifacts_stem_for_cache(args.cache, "leakage_check")
+        if args.out is None:
+            parser.error(f"--out is required when --cache is not under activations/<model>/: {args.cache}")
 
     acts, prompt_ids = actcache.load_cache(Path(args.cache))
     labels, groups = join_prompt_table(args.labels, prompt_ids)
